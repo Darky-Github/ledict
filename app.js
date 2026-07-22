@@ -20,11 +20,10 @@
   const darkToggle = document.getElementById('darkToggle');
   const themeSelect = document.getElementById('themeSelect');
 
-  // ---- Settings ----
   settingsToggle.addEventListener('click', () => {
     settingsDropdown.style.display = settingsDropdown.style.display === 'none' ? 'block' : 'none';
   });
-  // Close when clicking outside
+
   document.addEventListener('click', (e) => {
     if (!settingsToggle.contains(e.target) && !settingsDropdown.contains(e.target)) {
       settingsDropdown.style.display = 'none';
@@ -41,7 +40,6 @@
     document.documentElement.setAttribute('data-theme', (darkMode ? 'dark' : 'light') + ' ' + currentTheme);
   });
 
-  // ---- Functions ----
   function updateStatus() {
     colCountSpan.textContent = columns.length;
     statusMsg.textContent = columns.length === MAX_COLS ? 'Maximum columns reached' : 'Ready';
@@ -259,19 +257,15 @@
     }
   }
 
-  // ---- Event listeners ----
   document.getElementById('addColumnBtn').addEventListener('click', () => addColumn());
   document.getElementById('addMeanColumnsBtn').addEventListener('click', addMeanColumns);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('predictBtn').addEventListener('click', predict);
 
-  // Initial render with 5 empty columns
   renderColumns();
   for (let i = 0; i < 5; i++) {
     addColumn('Feature' + (i+1), 'numeric', '', false);
   }
 
-  // Apply initial theme and dark mode from localStorage?
-  // For simplicity, we start with light blue.
   document.documentElement.setAttribute('data-theme', 'light blue');
 })();
