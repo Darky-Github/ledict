@@ -15,15 +15,28 @@
     <div class="toolbar">
       <div class="btn-group">
         <button class="btn" id="addColumnBtn">+ Add Column</button>
+        <button class="btn btn-secondary" id="addMeanColumnsBtn">Add Remaining with Mean</button>
         <button class="btn btn-danger" id="clearAllBtn">Clear All</button>
         <button class="btn btn-primary" id="predictBtn">Predict</button>
       </div>
-      <div class="sample-group">
-        <button class="btn btn-sample" data-sample="weather">Weather</button>
-        <button class="btn btn-sample" data-sample="cpu">CPU</button>
-        <button class="btn btn-sample" data-sample="exam">Exam</button>
-        <button class="btn btn-sample" data-sample="maths_good">Maths Good</button>
-        <button class="btn btn-sample" data-sample="maths_bad">Maths Bad</button>
+      <div class="settings-group">
+        <button class="btn btn-settings" id="settingsToggle">⚙️ Settings</button>
+        <div class="settings-dropdown" id="settingsDropdown" style="display:none;">
+          <div class="setting-item">
+            <label for="darkToggle">Dark Mode</label>
+            <input type="checkbox" id="darkToggle" />
+          </div>
+          <div class="setting-item">
+            <label for="themeSelect">Theme</label>
+            <select id="themeSelect">
+              <option value="blue">Blue</option>
+              <option value="red">Red</option>
+              <option value="pink">Pink</option>
+              <option value="orange">Orange</option>
+              <option value="purple">Purple</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
 
