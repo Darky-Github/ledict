@@ -3,6 +3,8 @@
   const API_URL = 'https://ledictglm-api.onrender.com/predict';
 
   let columns = [];
+  let darkMode = false;
+  let currentTheme = 'blue';
 
   const container = document.getElementById('columnContainer');
   const colCountSpan = document.getElementById('colCount');
@@ -13,7 +15,33 @@
   const resultProbs = document.getElementById('resultProbs');
   const resultQuality = document.getElementById('resultDataQuality');
   const errorDiv = document.getElementById('errorMessage');
+  const settingsToggle = document.getElementById('settingsToggle');
+  const settingsDropdown = document.getElementById('settingsDropdown');
+  const darkToggle = document.getElementById('darkToggle');
+  const themeSelect = document.getElementById('themeSelect');
 
+  // ---- Settings ----
+  settingsToggle.addEventListener('click', () => {
+    settingsDropdown.style.display = settingsDropdown.style.display === 'none' ? 'block' : 'none';
+  });
+  // Close when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!settingsToggle.contains(e.target) && !settingsDropdown.contains(e.target)) {
+      settingsDropdown.style.display = 'none';
+    }
+  });
+
+  darkToggle.addEventListener('change', () => {
+    darkMode = darkToggle.checked;
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  });
+
+  themeSelect.addEventListener('change', () => {
+    currentTheme = themeSelect.value;
+    document.documentElement.setAttribute('data-theme', (darkMode ? 'dark' : 'light') + ' ' + currentTheme);
+  });
+
+  // ---- Functions ----
   function updateStatus() {
     colCountSpan.textContent = columns.length;
     statusMsg.textContent = columns.length === MAX_COLS ? 'Maximum columns reached' : 'Ready';
@@ -27,6 +55,12 @@
   }
 
   function hideError() { errorDiv.style.display = 'none'; }
+
+  function getPlaceholder(type) {
+    if (type === 'numeric') return 'e.g. 25.5';
+    if (type === 'datetime') return 'YYYY-MM-DD';
+    return 'e.g. Sunny';
+  }
 
   function renderColumns() {
     container.innerHTML = '';
@@ -67,12 +101,10 @@
       });
       typeSelect.addEventListener('change', () => {
         col.type = typeSelect.value;
-        // Update value input placeholder and disable state
         updateValueInput(row, col);
       });
       row.appendChild(typeSelect);
 
-      // Value input
       const valInput = document.createElement('input');
       valInput.className = 'col-value-input';
       valInput.type = col.type === 'datetime' ? 'date' : 'text';
@@ -81,7 +113,6 @@
       valInput.addEventListener('input', () => { col.value = valInput.value; });
       row.appendChild(valInput);
 
-      // Mean checkbox
       const meanLabel = document.createElement('label');
       meanLabel.className = 'col-mean';
       const meanCheck = document.createElement('input');
@@ -102,7 +133,6 @@
       meanLabel.appendChild(document.createTextNode('Mean'));
       row.appendChild(meanLabel);
 
-      // Delete button
       const delBtn = document.createElement('button');
       delBtn.className = 'col-delete';
       delBtn.textContent = '✕';
@@ -116,19 +146,12 @@
       row.appendChild(delBtn);
 
       container.appendChild(row);
-      // Apply initial disabled state if mean is checked
       if (col.useMean) {
         valInput.disabled = true;
         valInput.placeholder = 'mean';
       }
     });
     updateStatus();
-  }
-
-  function getPlaceholder(type) {
-    if (type === 'numeric') return 'e.g. 25.5';
-    if (type === 'datetime') return 'YYYY-MM-DD';
-    return 'e.g. Sunny';
   }
 
   function updateValueInput(row, col) {
@@ -140,10 +163,7 @@
   }
 
   function addColumn(name = '', type = 'numeric', value = '', useMean = false) {
-    if (columns.length >= MAX_COLS) {
-      showError('Maximum ' + MAX_COLS + ' columns reached.');
-      return;
-    }
+    if (columns.length >= MAX_COLS) return;
     const id = Date.now() + '-' + Math.random().toString(36).substr(2, 4);
     columns.push({ id, name, type, value, useMean });
     renderColumns();
@@ -160,91 +180,15 @@
     updateStatus();
   }
 
-  // Sample data loaders (unchanged, but now with useMean = false)
-  function loadSample(sampleName) {
-    clearAll();
-    let sampleData = [];
-    const generateGroup = (namePrefix, typePattern, valueFn) => {
-      for (let g = 0; g < 10; g++) {
-        const vals = valueFn(g);
-        for (let j = 0; j < 5; j++) {
-          const name = namePrefix + (g+1) + (j+1);
-          const type = typePattern[j];
-          const value = String(vals[j]);
-          sampleData.push({ name, type, value, useMean: false });
-        }
-      }
-    };
-    switch(sampleName) {
-      case 'weather':
-        generateGroup('T', ['numeric','numeric','categorical','numeric','datetime'],
-          (g) => {
-            const baseDate = new Date(2024,5,15+g);
-            return [
-              (20 + g*0.5 + Math.random()*2).toFixed(1),
-              (55 + g*1.5 + Math.random()*5).toFixed(0),
-              (1010 + g*0.8 + Math.random()*10).toFixed(0),
-              (8 + g*1.2 + Math.random()*4).toFixed(0),
-              baseDate.toISOString().split('T')[0]
-            ];
-          });
-        break;
-      case 'cpu':
-        generateGroup('C', ['numeric','numeric','numeric','numeric','datetime'],
-          (g) => {
-            const baseDate = new Date(2024,6,10+g);
-            return [
-              (50 + g*3 + Math.random()*10).toFixed(1),
-              (2500 + g*80 + Math.random()*400).toFixed(0),
-              (20 + g*0.5 + Math.random()*3).toFixed(1),
-              (70 + g*5 + Math.random()*20).toFixed(0),
-              baseDate.toISOString().split('T')[0]
-            ];
-          });
-        break;
-      case 'exam':
-        generateGroup('E', ['numeric','numeric','numeric','numeric','numeric'],
-          (g) => {
-            return [
-              (50 + g*2 + Math.random()*15).toFixed(0),
-              (1.5 + g*0.3 + Math.random()*1.2).toFixed(1),
-              (45 + g*2 + Math.random()*10).toFixed(0),
-              (4 + g*0.3 + Math.random()*2).toFixed(1),
-              (6 + g*0.2 + Math.random()*2).toFixed(1)
-            ];
-          });
-        break;
-      case 'maths_good':
-        generateGroup('M', ['numeric','numeric','numeric','numeric','numeric'],
-          (g) => {
-            return [
-              (85 + g*0.5 + Math.random()*3).toFixed(0),
-              (5.0 + g*0.1 + Math.random()*0.8).toFixed(1),
-              (10 + g*0.2 + Math.random()*1.5).toFixed(1),
-              (8.0 + g*0.1 + Math.random()*0.8).toFixed(1),
-              (1.5 - g*0.05 + Math.random()*0.5).toFixed(1)
-            ];
-          });
-        break;
-      case 'maths_bad':
-        generateGroup('M', ['numeric','numeric','numeric','numeric','numeric'],
-          (g) => {
-            return [
-              (35 + g*0.5 + Math.random()*5).toFixed(0),
-              (1.0 + g*0.1 + Math.random()*0.5).toFixed(1),
-              (2.0 + g*0.2 + Math.random()*1.0).toFixed(1),
-              (3.5 + g*0.1 + Math.random()*0.8).toFixed(1),
-              (8.5 - g*0.1 + Math.random()*0.8).toFixed(1)
-            ];
-          });
-        break;
-      default: return;
+  function addMeanColumns() {
+    const needed = MAX_COLS - columns.length;
+    if (needed <= 0) {
+      showError('Already have 50 columns.');
+      return;
     }
-    let added = 0;
-    for (let item of sampleData) {
-      if (added >= MAX_COLS) break;
-      addColumn(item.name, item.type, item.value, item.useMean);
-      added++;
+    for (let i = 0; i < needed; i++) {
+      const idx = columns.length + 1;
+      addColumn('Feature' + idx, 'numeric', '', true);
     }
     updateStatus();
   }
@@ -315,20 +259,19 @@
     }
   }
 
-  // Event listeners
+  // ---- Event listeners ----
   document.getElementById('addColumnBtn').addEventListener('click', () => addColumn());
+  document.getElementById('addMeanColumnsBtn').addEventListener('click', addMeanColumns);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('predictBtn').addEventListener('click', predict);
 
-  document.querySelectorAll('[data-sample]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      loadSample(btn.dataset.sample);
-    });
-  });
-
-  // Initial render with 5 empty columns (useMean false)
+  // Initial render with 5 empty columns
   renderColumns();
   for (let i = 0; i < 5; i++) {
     addColumn('Feature' + (i+1), 'numeric', '', false);
   }
+
+  // Apply initial theme and dark mode from localStorage?
+  // For simplicity, we start with light blue.
+  document.documentElement.setAttribute('data-theme', 'light blue');
 })();
