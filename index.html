@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5" />
+  <title>LedictGBM-1 – AI Predictor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <h1>LedictGBM-1</h1>
+    <div class="subtitle">Universal Prediction Engine — add your columns, any names, any order.</div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="btn-group">
+        <button class="btn" id="addColumnBtn">+ Add Column</button>
+        <button class="btn btn-danger" id="clearAllBtn">Clear All</button>
+        <button class="btn btn-primary" id="predictBtn">Predict</button>
+      </div>
+      <div class="sample-group">
+        <button class="btn btn-sample" data-sample="weather">Weather</button>
+        <button class="btn btn-sample" data-sample="cpu">CPU</button>
+        <button class="btn btn-sample" data-sample="exam">Exam</button>
+        <button class="btn btn-sample" data-sample="maths_good">Maths Good</button>
+        <button class="btn btn-sample" data-sample="maths_bad">Maths Bad</button>
+      </div>
+    </div>
+
+    <!-- Column list -->
+    <div id="columnContainer" class="column-grid"></div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span>Columns: <span id="colCount" class="count">0</span> / 50</span>
+      <span id="statusMessage">Ready</span>
+    </div>
+
+    <!-- Result card -->
+    <div id="resultCard" class="result-card">
+      <div class="result-prediction" id="resultPrediction">-</div>
+      <div class="result-confidence" id="resultConfidence">Confidence: -</div>
+      <div class="result-probs" id="resultProbs"></div>
+      <div class="result-data-quality" id="resultDataQuality">Data quality: -</div>
+    </div>
+
+    <!-- Error -->
+    <div id="errorMessage" class="error-message"></div>
+
+    <div class="footer">Powered by LedictGBM-1 · Column‑agnostic AI</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
