@@ -67,28 +67,42 @@
       });
       typeSelect.addEventListener('change', () => {
         col.type = typeSelect.value;
-        const valInput = row.querySelector('.col-value-input');
-        if (valInput) {
-          valInput.placeholder = col.type === 'numeric' ? 'e.g. 25.5' :
-                                 col.type === 'datetime' ? 'YYYY-MM-DD' : 'e.g. Sunny';
-          valInput.type = col.type === 'datetime' ? 'date' : 'text';
-          if (col.type === 'datetime' && col.value) {
-            const d = new Date(col.value);
-            if (!isNaN(d)) valInput.value = d.toISOString().split('T')[0];
-          }
-        }
+        // Update value input placeholder and disable state
+        updateValueInput(row, col);
       });
       row.appendChild(typeSelect);
 
+      // Value input
       const valInput = document.createElement('input');
       valInput.className = 'col-value-input';
       valInput.type = col.type === 'datetime' ? 'date' : 'text';
-      valInput.placeholder = col.type === 'numeric' ? 'e.g. 25.5' :
-                             col.type === 'datetime' ? 'YYYY-MM-DD' : 'e.g. Sunny';
+      valInput.placeholder = getPlaceholder(col.type);
       valInput.value = col.value;
       valInput.addEventListener('input', () => { col.value = valInput.value; });
       row.appendChild(valInput);
 
+      // Mean checkbox
+      const meanLabel = document.createElement('label');
+      meanLabel.className = 'col-mean';
+      const meanCheck = document.createElement('input');
+      meanCheck.type = 'checkbox';
+      meanCheck.title = 'Use mean value from training data';
+      meanCheck.checked = col.useMean || false;
+      meanCheck.addEventListener('change', () => {
+        col.useMean = meanCheck.checked;
+        valInput.disabled = col.useMean;
+        if (col.useMean) {
+          valInput.value = '';
+          valInput.placeholder = 'mean';
+        } else {
+          valInput.placeholder = getPlaceholder(col.type);
+        }
+      });
+      meanLabel.appendChild(meanCheck);
+      meanLabel.appendChild(document.createTextNode('Mean'));
+      row.appendChild(meanLabel);
+
+      // Delete button
       const delBtn = document.createElement('button');
       delBtn.className = 'col-delete';
       delBtn.textContent = '✕';
@@ -102,17 +116,36 @@
       row.appendChild(delBtn);
 
       container.appendChild(row);
+      // Apply initial disabled state if mean is checked
+      if (col.useMean) {
+        valInput.disabled = true;
+        valInput.placeholder = 'mean';
+      }
     });
     updateStatus();
   }
 
-  function addColumn(name = '', type = 'numeric', value = '') {
+  function getPlaceholder(type) {
+    if (type === 'numeric') return 'e.g. 25.5';
+    if (type === 'datetime') return 'YYYY-MM-DD';
+    return 'e.g. Sunny';
+  }
+
+  function updateValueInput(row, col) {
+    const valInput = row.querySelector('.col-value-input');
+    if (valInput) {
+      valInput.placeholder = col.useMean ? 'mean' : getPlaceholder(col.type);
+      valInput.type = col.type === 'datetime' && !col.useMean ? 'date' : 'text';
+    }
+  }
+
+  function addColumn(name = '', type = 'numeric', value = '', useMean = false) {
     if (columns.length >= MAX_COLS) {
       showError('Maximum ' + MAX_COLS + ' columns reached.');
       return;
     }
     const id = Date.now() + '-' + Math.random().toString(36).substr(2, 4);
-    columns.push({ id, name, type, value });
+    columns.push({ id, name, type, value, useMean });
     renderColumns();
     hideError();
     container.scrollTop = container.scrollHeight;
@@ -127,24 +160,24 @@
     updateStatus();
   }
 
+  // Sample data loaders (unchanged, but now with useMean = false)
   function loadSample(sampleName) {
     clearAll();
     let sampleData = [];
-    // Each sample generates 50 entries (10 groups of 5)
-    const generateGroup = (base, namePrefix, typePattern, valueFn) => {
+    const generateGroup = (namePrefix, typePattern, valueFn) => {
       for (let g = 0; g < 10; g++) {
         const vals = valueFn(g);
         for (let j = 0; j < 5; j++) {
           const name = namePrefix + (g+1) + (j+1);
           const type = typePattern[j];
-          const value = vals[j];
-          sampleData.push({ name, type, value });
+          const value = String(vals[j]);
+          sampleData.push({ name, type, value, useMean: false });
         }
       }
     };
     switch(sampleName) {
       case 'weather':
-        generateGroup(0, 'T', ['numeric','numeric','categorical','numeric','datetime'],
+        generateGroup('T', ['numeric','numeric','categorical','numeric','datetime'],
           (g) => {
             const baseDate = new Date(2024,5,15+g);
             return [
@@ -157,7 +190,7 @@
           });
         break;
       case 'cpu':
-        generateGroup(0, 'C', ['numeric','numeric','numeric','numeric','datetime'],
+        generateGroup('C', ['numeric','numeric','numeric','numeric','datetime'],
           (g) => {
             const baseDate = new Date(2024,6,10+g);
             return [
@@ -170,7 +203,7 @@
           });
         break;
       case 'exam':
-        generateGroup(0, 'E', ['numeric','numeric','numeric','numeric','numeric'],
+        generateGroup('E', ['numeric','numeric','numeric','numeric','numeric'],
           (g) => {
             return [
               (50 + g*2 + Math.random()*15).toFixed(0),
@@ -182,7 +215,7 @@
           });
         break;
       case 'maths_good':
-        generateGroup(0, 'M', ['numeric','numeric','numeric','numeric','numeric'],
+        generateGroup('M', ['numeric','numeric','numeric','numeric','numeric'],
           (g) => {
             return [
               (85 + g*0.5 + Math.random()*3).toFixed(0),
@@ -194,7 +227,7 @@
           });
         break;
       case 'maths_bad':
-        generateGroup(0, 'M', ['numeric','numeric','numeric','numeric','numeric'],
+        generateGroup('M', ['numeric','numeric','numeric','numeric','numeric'],
           (g) => {
             return [
               (35 + g*0.5 + Math.random()*5).toFixed(0),
@@ -207,11 +240,10 @@
         break;
       default: return;
     }
-    // Add only up to MAX_COLS
     let added = 0;
     for (let item of sampleData) {
       if (added >= MAX_COLS) break;
-      addColumn(item.name, item.type, item.value);
+      addColumn(item.name, item.type, item.value, item.useMean);
       added++;
     }
     updateStatus();
@@ -222,13 +254,17 @@
     resultCard.classList.remove('show');
 
     const dataObj = {};
-    columns.forEach(col => {
-      let val = col.value.trim();
-      if (col.type === 'numeric') {
-        const num = parseFloat(val);
-        if (!isNaN(num)) val = num;
+    columns.forEach((col, idx) => {
+      if (col.useMean) {
+        dataObj[col.name || 'col_' + (idx+1)] = null;
+      } else {
+        let val = col.value.trim();
+        if (col.type === 'numeric') {
+          const num = parseFloat(val);
+          if (!isNaN(num)) val = num;
+        }
+        dataObj[col.name || 'col_' + (idx+1)] = val;
       }
-      dataObj[col.name || 'col_' + (columns.indexOf(col)+1)] = val;
     });
 
     if (columns.length === 0) {
@@ -236,7 +272,7 @@
       return;
     }
     if (columns.length !== 50) {
-      showError('Model expects exactly 50 features. You have ' + columns.length + '. Please add ' + (50 - columns.length) + ' more.');
+      showError('Model expects exactly 50 features. You have ' + columns.length + '. Please add ' + (50 - columns.length) + ' more or use "Mean" for the rest.');
       return;
     }
 
@@ -290,9 +326,9 @@
     });
   });
 
-  // Initial render with 5 empty columns
+  // Initial render with 5 empty columns (useMean false)
   renderColumns();
   for (let i = 0; i < 5; i++) {
-    addColumn('Feature' + (i+1), 'numeric', '');
+    addColumn('Feature' + (i+1), 'numeric', '', false);
   }
 })();
