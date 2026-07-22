@@ -162,6 +162,24 @@ h1 {
 .column-row .col-value input {
   width: 100%;
 }
+.column-row .col-value input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.column-row .col-mean {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #475569;
+  white-space: nowrap;
+}
+.column-row .col-mean input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
 .column-row .col-delete {
   background: none;
   border: none;
@@ -282,7 +300,7 @@ h1 {
 @media (max-width: 680px) {
   .app-container { padding: 16px; }
   .column-row { border-radius: 20px; padding: 10px 12px; flex-wrap: wrap; }
-  .column-row .col-name, .column-row .col-type, .column-row .col-value {
+  .column-row .col-name, .column-row .col-type, .column-row .col-value, .column-row .col-mean {
     flex: 1 1 100%;
   }
   .column-row .col-value input { width: 100%; }
@@ -290,4 +308,4 @@ h1 {
   .btn-group, .sample-group { justify-content: center; }
   .btn { justify-content: center; }
   .result-probs .prob-bar { width: 100px; }
-  }
+}
