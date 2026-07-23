@@ -20,7 +20,6 @@
   const darkToggle = document.getElementById('darkToggle');
   const themeSelect = document.getElementById('themeSelect');
 
-  // --- Settings ---
   settingsToggle.addEventListener('click', () => {
     settingsDropdown.style.display = settingsDropdown.style.display === 'none' ? 'block' : 'none';
   });
@@ -40,17 +39,16 @@
     document.documentElement.setAttribute('data-theme', (darkMode ? 'dark' : 'light') + ' ' + currentTheme);
   });
 
-  // --- Helpers ---
   function updateStatus() {
     colCountSpan.textContent = columns.length;
     statusMsg.textContent = columns.length === MAX_COLS ? 'Maximum columns reached' : 'Ready';
     document.getElementById('addColumnBtn').disabled = columns.length >= MAX_COLS;
   }
 
-  function showError(msg) {
-    errorDiv.textContent = msg;
+  function showError(msg, details = '') {
+    errorDiv.innerHTML = msg + (details ? '<br><pre style="white-space:pre-wrap;font-size:0.8rem;margin-top:8px;background:#f1f1f1;padding:8px;border-radius:8px;">' + details + '</pre>' : '');
     errorDiv.style.display = 'block';
-    setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+    setTimeout(() => { errorDiv.style.display = 'none'; }, 15000);
   }
 
   function hideError() { errorDiv.style.display = 'none'; }
@@ -196,65 +194,68 @@
     hideError();
     resultCard.classList.remove('show');
 
-    // Build data object from current columns
-    const dataObj = {};
-    columns.forEach((col, idx) => {
-      if (col.useMean) {
-        dataObj[col.name || 'col_' + (idx+1)] = null;
-      } else {
-        let val = col.value.trim();
-        if (col.type === 'numeric') {
-          const num = parseFloat(val);
-          if (!isNaN(num)) val = num;
-        }
-        dataObj[col.name || 'col_' + (idx+1)] = val;
-      }
-    });
-
-    // If fewer than 50, pad with nulls (using generic names)
-    const currentCount = Object.keys(dataObj).length;
-    if (currentCount < MAX_COLS) {
-      for (let i = currentCount + 1; i <= MAX_COLS; i++) {
-        dataObj['col_' + i] = null;
-      }
-    }
-
-    if (columns.length === 0) {
-      showError('Please add at least one column.');
-      return;
-    }
-
-    statusMsg.innerHTML = '<span class="loading-spinner"></span> Predicting...';
-    document.getElementById('predictBtn').disabled = true;
-
     try {
+      // Build data object
+      const dataObj = {};
+      columns.forEach((col, idx) => {
+        if (col.useMean) {
+          dataObj[col.name || 'col_' + (idx+1)] = null;
+        } else {
+          let val = col.value.trim();
+          if (col.type === 'numeric') {
+            const num = parseFloat(val);
+            if (!isNaN(num)) val = num;
+          }
+          dataObj[col.name || 'col_' + (idx+1)] = val;
+        }
+      });
+
+      // Pad to 50 with null
+      const currentCount = Object.keys(dataObj).length;
+      if (currentCount < MAX_COLS) {
+        for (let i = currentCount + 1; i <= MAX_COLS; i++) {
+          dataObj['col_' + i] = null;
+        }
+      }
+
+      if (columns.length === 0) {
+        showError('Please add at least one column.');
+        return;
+      }
+
+      statusMsg.innerHTML = '<span class="loading-spinner"></span> Predicting...';
+      document.getElementById('predictBtn').disabled = true;
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataObj })
       });
 
+      const responseText = await response.text();
       let result;
       try {
-        result = await response.json();
+        result = JSON.parse(responseText);
       } catch (jsonError) {
-        throw new Error('The server returned invalid JSON. Please check the API.');
+        showError('Failed to parse server response as JSON.', responseText.substring(0, 500));
+        return;
       }
 
       if (!response.ok) {
         const detail = result && result.detail ? result.detail : 'Server error (status ' + response.status + ')';
-        throw new Error(detail);
+        showError(detail, responseText.substring(0, 500));
+        return;
       }
 
-      // Validate response structure
+      // Validate required fields
       if (typeof result.prediction === 'undefined' || typeof result.confidence === 'undefined') {
-        throw new Error('Incomplete response from server (missing prediction or confidence).');
+        showError('Incomplete response from server.', JSON.stringify(result, null, 2));
+        return;
       }
 
       resultPred.textContent = 'Prediction: ' + result.prediction;
       resultConf.textContent = 'Confidence: ' + (result.confidence * 100).toFixed(1) + '%';
 
-      // Handle probabilities safely
       resultProbs.innerHTML = '';
       if (result.probabilities && typeof result.probabilities === 'object') {
         const entries = Object.entries(result.probabilities);
@@ -284,20 +285,17 @@
       statusMsg.textContent = 'Prediction complete';
 
     } catch (err) {
-      showError(err.message || 'Prediction failed. Check your input or API status.');
-      statusMsg.textContent = 'Error';
+      showError('Unexpected error: ' + err.message, err.stack || '');
     } finally {
       document.getElementById('predictBtn').disabled = false;
     }
   }
 
-  // --- Event listeners ---
   document.getElementById('addColumnBtn').addEventListener('click', () => addColumn());
   document.getElementById('addMeanColumnsBtn').addEventListener('click', addMeanColumns);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('predictBtn').addEventListener('click', predict);
 
-  // Init with 5 empty columns
   renderColumns();
   for (let i = 0; i < 5; i++) {
     addColumn('Feature' + (i+1), 'numeric', '', false);
