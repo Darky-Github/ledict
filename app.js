@@ -23,7 +23,6 @@
   settingsToggle.addEventListener('click', () => {
     settingsDropdown.style.display = settingsDropdown.style.display === 'none' ? 'block' : 'none';
   });
-
   document.addEventListener('click', (e) => {
     if (!settingsToggle.contains(e.target) && !settingsDropdown.contains(e.target)) {
       settingsDropdown.style.display = 'none';
@@ -227,29 +226,54 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataObj })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.detail || 'Server error');
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        throw new Error('Invalid JSON response from server');
       }
+
+      if (!response.ok) {
+        throw new Error(result.detail || 'Server error (status ' + response.status + ')');
+      }
+
+      if (typeof result.prediction === 'undefined' || typeof result.confidence === 'undefined' || typeof result.probabilities === 'undefined') {
+        throw new Error('Incomplete response from server');
+      }
+
       resultPred.textContent = 'Prediction: ' + result.prediction;
       resultConf.textContent = 'Confidence: ' + (result.confidence * 100).toFixed(1) + '%';
+
       resultProbs.innerHTML = '';
       const probs = result.probabilities;
-      const sorted = Object.entries(probs).sort((a,b) => b[1]-a[1]);
-      sorted.forEach(([label, prob]) => {
-        const div = document.createElement('div');
-        div.className = 'prob-item';
-        div.innerHTML = `
-          <span style="min-width:60px;">${label}</span>
-          <div class="prob-bar"><div class="fill" style="width:${prob*100}%;"></div></div>
-          <span>${(prob*100).toFixed(1)}%</span>
-        `;
-        resultProbs.appendChild(div);
-      });
+      if (typeof probs === 'object' && probs !== null) {
+        const sorted = Object.entries(probs).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) {
+          resultProbs.innerHTML = '<div style="color:var(--text-muted);">No probability data available.</div>';
+        } else {
+          sorted.forEach(([label, prob]) => {
+            const div = document.createElement('div');
+            div.className = 'prob-item';
+            const pct = (prob * 100).toFixed(1);
+            div.innerHTML = `
+              <span style="min-width:60px;">${label}</span>
+              <div class="prob-bar"><div class="fill" style="width:${pct}%;"></div></div>
+              <span>${pct}%</span>
+            `;
+            resultProbs.appendChild(div);
+          });
+        }
+      } else {
+        resultProbs.innerHTML = '<div style="color:var(--text-muted);">Probability data unavailable.</div>';
+      }
+
       resultQuality.textContent = 'Data quality: ' + (result.data_quality || '1.0');
       resultCard.classList.add('show');
       statusMsg.textContent = 'Prediction complete';
+
     } catch (err) {
+      console.error('Prediction error:', err);
       showError(err.message || 'Prediction failed. Check your input or API status.');
       statusMsg.textContent = 'Error';
     } finally {
