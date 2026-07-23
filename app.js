@@ -20,6 +20,7 @@
   const darkToggle = document.getElementById('darkToggle');
   const themeSelect = document.getElementById('themeSelect');
 
+  // --- Settings ---
   settingsToggle.addEventListener('click', () => {
     settingsDropdown.style.display = settingsDropdown.style.display === 'none' ? 'block' : 'none';
   });
@@ -39,6 +40,7 @@
     document.documentElement.setAttribute('data-theme', (darkMode ? 'dark' : 'light') + ' ' + currentTheme);
   });
 
+  // --- Helpers ---
   function updateStatus() {
     colCountSpan.textContent = columns.length;
     statusMsg.textContent = columns.length === MAX_COLS ? 'Maximum columns reached' : 'Ready';
@@ -48,7 +50,7 @@
   function showError(msg) {
     errorDiv.textContent = msg;
     errorDiv.style.display = 'block';
-    setTimeout(() => { errorDiv.style.display = 'none'; }, 6000);
+    setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
   }
 
   function hideError() { errorDiv.style.display = 'none'; }
@@ -194,6 +196,7 @@
     hideError();
     resultCard.classList.remove('show');
 
+    // Build data object from current columns
     const dataObj = {};
     columns.forEach((col, idx) => {
       if (col.useMean) {
@@ -208,12 +211,16 @@
       }
     });
 
+    // If fewer than 50, pad with nulls (using generic names)
+    const currentCount = Object.keys(dataObj).length;
+    if (currentCount < MAX_COLS) {
+      for (let i = currentCount + 1; i <= MAX_COLS; i++) {
+        dataObj['col_' + i] = null;
+      }
+    }
+
     if (columns.length === 0) {
       showError('Please add at least one column.');
-      return;
-    }
-    if (columns.length !== 50) {
-      showError('Model expects exactly 50 features. You have ' + columns.length + '. Please add ' + (50 - columns.length) + ' more or use "Mean" for the rest.');
       return;
     }
 
@@ -231,31 +238,35 @@
       try {
         result = await response.json();
       } catch (jsonError) {
-        throw new Error('Invalid JSON response from server');
+        throw new Error('The server returned invalid JSON. Please check the API.');
       }
 
       if (!response.ok) {
-        throw new Error(result.detail || 'Server error (status ' + response.status + ')');
+        const detail = result && result.detail ? result.detail : 'Server error (status ' + response.status + ')';
+        throw new Error(detail);
       }
 
-      if (typeof result.prediction === 'undefined' || typeof result.confidence === 'undefined' || typeof result.probabilities === 'undefined') {
-        throw new Error('Incomplete response from server');
+      // Validate response structure
+      if (typeof result.prediction === 'undefined' || typeof result.confidence === 'undefined') {
+        throw new Error('Incomplete response from server (missing prediction or confidence).');
       }
 
       resultPred.textContent = 'Prediction: ' + result.prediction;
       resultConf.textContent = 'Confidence: ' + (result.confidence * 100).toFixed(1) + '%';
 
+      // Handle probabilities safely
       resultProbs.innerHTML = '';
-      const probs = result.probabilities;
-      if (typeof probs === 'object' && probs !== null) {
-        const sorted = Object.entries(probs).sort((a, b) => b[1] - a[1]);
-        if (sorted.length === 0) {
+      if (result.probabilities && typeof result.probabilities === 'object') {
+        const entries = Object.entries(result.probabilities);
+        if (entries.length === 0) {
           resultProbs.innerHTML = '<div style="color:var(--text-muted);">No probability data available.</div>';
         } else {
-          sorted.forEach(([label, prob]) => {
+          entries.sort((a, b) => b[1] - a[1]);
+          entries.forEach(([label, prob]) => {
+            if (typeof prob !== 'number' || isNaN(prob)) prob = 0;
+            const pct = (prob * 100).toFixed(1);
             const div = document.createElement('div');
             div.className = 'prob-item';
-            const pct = (prob * 100).toFixed(1);
             div.innerHTML = `
               <span style="min-width:60px;">${label}</span>
               <div class="prob-bar"><div class="fill" style="width:${pct}%;"></div></div>
@@ -273,7 +284,6 @@
       statusMsg.textContent = 'Prediction complete';
 
     } catch (err) {
-      console.error('Prediction error:', err);
       showError(err.message || 'Prediction failed. Check your input or API status.');
       statusMsg.textContent = 'Error';
     } finally {
@@ -281,11 +291,13 @@
     }
   }
 
+  // --- Event listeners ---
   document.getElementById('addColumnBtn').addEventListener('click', () => addColumn());
   document.getElementById('addMeanColumnsBtn').addEventListener('click', addMeanColumns);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('predictBtn').addEventListener('click', predict);
 
+  // Init with 5 empty columns
   renderColumns();
   for (let i = 0; i < 5; i++) {
     addColumn('Feature' + (i+1), 'numeric', '', false);
